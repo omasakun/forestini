@@ -1,0 +1,17 @@
+{
+	"cSpell.words": [
+		"Forestini",
+		"Globbing",
+		"NOCHANGE",
+		"endregion",
+		"graphviz",
+		"omasakun",
+		"tmpfs",
+		"tsbuildinfo"
+	],
+	"files.exclude": {
+		"**/.git": true,
+		"node_modules": true
+	},
+	"npm.packageManager": "pnpm",
+}

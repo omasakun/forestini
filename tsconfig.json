@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "target": "ES2019",
+    "preserveConstEnums": true,
+    "strictNullChecks": true,
+    "alwaysStrict": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "experimentalDecorators": true,
+    "sourceMap": false,
+    "strictPropertyInitialization": true,
+    "moduleResolution": "node",
+    "declaration": true
+  },
+  "files": ["forestini.ts"]
+}
