@@ -1,4 +1,8 @@
 {
+	"name": "forestini",
+	"description": "The Simple Asset Pipeline",
+	"author": "omasakun",
+	"license": "MIT",
 	"private": true,
 	"scripts": {
 		"build": "tsc",
