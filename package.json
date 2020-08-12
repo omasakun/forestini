@@ -4,6 +4,8 @@
 	"author": "omasakun",
 	"license": "MIT",
 	"private": true,
+  "main": "forestini.js",
+  "types": "forestini.d.ts",
 	"scripts": {
 		"build": "tsc",
 		"ncu": "ncu"
