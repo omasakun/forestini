@@ -69,48 +69,65 @@
 
 ## 使用例
 
+`scripts/build.ts`
 ```typescript
 import { notify } from "node-notifier";
 import { buildDirPlaceholders, Builder as Forestini, exec, filterFiles } from "./forestini";
+
 const fo = new Forestini({ tmpDir: ".tmp" });
 const { i0, o, c } = buildDirPlaceholders; // i0: inputDir[0] / o: outputDir / c: cacheDir
 const isProd = process.argv.some(o => o === "--prod");
 
 // complex task configs can be defined separately
 const tsc = exec({ persistentOutput: true, displayName: "tsc" })
-	`tsc ${i0}/index.ts --rootDir ${i0} --outDir ${o} --incremental --tsBuildInfoFile ${c}/.tsbuildinfo --pretty`;
+  `tsc ${i0}/index.ts --rootDir ${i0} --outDir ${o} --incremental --tsBuildInfoFile ${c}/.tsbuildinfo --pretty`;
 
-const source = fo.src("src");
+const source = fo.src("src"); // read from `./src`
 
 const scripts = source
-	.filterFiles("**/@(*.ts|*.tsx)")
-	.cache() // if files are unchanged, `tsc` will not be executed
-	.then(tsc)
-	.if(isProd, filterFiles("**/!(*.js.map|*.d.ts)")); // execute a task conditionally
+  .filterFiles("**/@(*.ts|*.tsx)")
+  .cache() // if files are unchanged, `tsc` will not be executed
+  .then(tsc)
+  .if(isProd, filterFiles("**/!(*.js.map|*.d.ts)")); // execute a task conditionally
 
 const assets = source.filterFiles("**/!(*.ts|*.tsx)");
 
 const compiled = fo.merge([scripts, assets]);
 
-compiled.dest("dest");
+compiled.dest("dest"); // write to `./dest`
 compiled.browserSync({
-	logPrefix: "BS",
-	open: false,
-	port: 8137,
-	ui: { port: 8138 },
-	logFileChanges: false,
-	https: false,
-	notify: false,
-	reloadOnRestart: true,
+  logPrefix: "BS",
+  open: false,
+  port: 8137,
+  ui: { port: 8138 },
+  logFileChanges: false,
+  https: false,
+  notify: false,
+  reloadOnRestart: true,
 }); // my favorite configs
 
 // because the tasks are executed in parallel,
 // the output of `echo` will be shown before the output of `dest`
-compiled.then(exec()`echo finished! compiled files & dirs @ ${i0}`); // short style
-compiled.asyncBuild(async () => notify("Compiled!"));
+compiled.then(exec()`echo compiled files & dirs @ ${i0}`);
+compiled.asyncBuild(async () => notify("Compiled!")); // custom task
 
 fo.freeze() // freeze the task dependency graph
-	.watch(); // no additional configs for watch is required
+  .watch(); // no additional configs for watch is required
+```
+
+`package.json`
+``` json
+{
+  "scripts": {
+    "build": "ts-node scripts/build.ts"
+  },
+  "devDependencies": {
+    // ...
+    "forestini": "github:omasakun/forestini#semver:^2.0.0",
+    // ...
+  }
+  // ...
+}
 ```
 
 Real-World Example: [Typing Tutor](https://github.com/omasakun/typing-tutor) is using Forestini.
