@@ -116,7 +116,7 @@ fo.freeze() // freeze the task dependency graph
 ```
 
 `package.json`
-``` json
+``` jsonc
 {
   "scripts": {
     "build": "ts-node scripts/build.ts"
