@@ -1,6 +1,7 @@
 dependencies:
   browser-sync: 2.26.12
   chokidar: 3.4.2
+  glob: 7.1.6
   ncp: 2.0.0
   rimraf: 3.0.2
 devDependencies:
@@ -658,7 +659,7 @@ packages:
       integrity: sha1-p2o+0YVb56ASu4rBbLgPPADcKPA=
   /easy-extender/2.3.4:
     dependencies:
-      lodash: 4.17.19
+      lodash: 4.17.20
     dev: false
     engines:
       node: '>= 4.0.0'
@@ -1042,7 +1043,7 @@ packages:
       depd: 1.1.2
       inherits: 2.0.3
       setprototypeof: 1.1.0
-      statuses: 1.4.0
+      statuses: 1.5.0
     dev: false
     engines:
       node: '>= 0.6'
@@ -1359,10 +1360,10 @@ packages:
     dev: false
     resolution:
       integrity: sha1-+4m2WpqAKBgz8LdHizpRBPiY67M=
-  /lodash/4.17.19:
+  /lodash/4.17.20:
     dev: false
     resolution:
-      integrity: sha512-JNvd8XER9GQX0v2qJgsaN/mzFCNA5BRe/j8JN9d+tWyGLSodKQHKFicdwNYzWwI3wjRnaKPsGj1XkBjx/F96DQ==
+      integrity: sha512-PlhdFcillOINfeV7Ni6oF1TAEayyZBoZ8bcshTHqOYJYlrqzRK5hagpagky5o4HfCzzd1TRkXPMFq6cKk9rGmA==
   /map-cache/0.2.2:
     dev: true
     engines:
@@ -2345,6 +2346,7 @@ specifiers:
   '@types/rimraf': ^3.0.0
   browser-sync: ^2.26.12
   chokidar: ^3.4.2
+  glob: ^7.1.6
   ncp: ^2.0.0
   rimraf: ^3.0.2
   typescript: ^3.9.7
