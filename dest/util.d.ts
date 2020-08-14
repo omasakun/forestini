@@ -10,7 +10,7 @@ export declare class InterleavedStreams {
     isErrEmpty(): boolean;
     output(): void;
 }
-export declare function captureOutputStreams<T>(fn: () => Promise<T>): Promise<{
+export declare function captureOutputStreams<T>(fn: () => Promise<T>, debug?: boolean): Promise<{
     streams: InterleavedStreams;
     res: T;
 }>;

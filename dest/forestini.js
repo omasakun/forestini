@@ -292,9 +292,10 @@ function easyBuild(fn) {
             }
             util_1.invalid();
         });
-        const dir = buildDirContext.getObject();
-        const result = await fn({ getInDirs, getValidInDirs, getOutDir, getCacheDir, dir });
+        const dir = buildDirContext.getObject(); // use async_hooks to create async context
+        const fnPromise = fn({ getInDirs, getValidInDirs, getOutDir, getCacheDir, dir });
         buildDirContext.clearGetter();
+        const result = await fnPromise;
         if (!hasGetInDirsCalled && util_1.uniq(usedInDirs).length !== inDirs.filter(o => typeof o === "string").length) {
             console.warn("some inDirs were not used");
         }

@@ -44,21 +44,30 @@ class InterleavedStreams {
     }
 }
 exports.InterleavedStreams = InterleavedStreams;
-async function captureOutputStreams(fn) {
+async function captureOutputStreams(fn, debug = false) {
     const streams = new InterleavedStreams();
     const originalOutWrite = process.stdout.write;
     const originalErrWrite = process.stderr.write;
     const targets = new Set();
     targets.add(async_hooks_1.executionAsyncId());
+    fs_1.writeSync(1, `[exec ${async_hooks_1.executionAsyncId()}]\n`);
+    let indent = 2;
     const hook = async_hooks_1.createHook({
         init(asyncId, type, triggerAsyncId) {
-            if (targets.has(triggerAsyncId)) {
-                targets.add(asyncId);
+            if (!targets.has(triggerAsyncId))
+                return;
+            targets.add(asyncId);
+            if (debug) {
+                fs_1.writeSync(1, `${' '.repeat(indent)}${triggerAsyncId} -> ${asyncId} [exec ${async_hooks_1.executionAsyncId()}] ${type}\n`);
             }
         },
         before(asyncId) {
             if (!targets.has(asyncId))
                 return;
+            if (debug) {
+                fs_1.writeSync(1, `${' '.repeat(indent)}${asyncId} {\n`);
+                indent += 2;
+            }
             //@ts-ignore
             process.stdout.write = streams.stdout.write.bind(streams.stdout);
             //@ts-ignore
@@ -67,6 +76,10 @@ async function captureOutputStreams(fn) {
         after(asyncId) {
             if (!targets.has(asyncId))
                 return;
+            if (debug) {
+                indent -= 2;
+                fs_1.writeSync(1, `${' '.repeat(indent)}} ${asyncId}\n`);
+            }
             process.stdout.write = originalOutWrite;
             process.stderr.write = originalErrWrite;
         },
