@@ -1,5 +1,5 @@
 import { createHook, executionAsyncId } from "async_hooks";
-import { mkdirSync, promises as fsPromises } from "fs";
+import { mkdirSync, promises as fsPromises, writeSync } from "fs";
 import * as ncpBase from "ncp";
 import { join, sep } from "path";
 import * as rimrafBase from "rimraf";
@@ -47,20 +47,28 @@ interface StreamOutputItem {
 	text: string
 }
 
-export async function captureOutputStreams<T>(fn: () => Promise<T>): Promise<{ streams: InterleavedStreams, res: T }> {
+export async function captureOutputStreams<T>(fn: () => Promise<T>, debug = false): Promise<{ streams: InterleavedStreams, res: T }> {
 	const streams = new InterleavedStreams();
 	const originalOutWrite = process.stdout.write;
 	const originalErrWrite = process.stderr.write;
 	const targets = new Set<number>();
 	targets.add(executionAsyncId());
+	writeSync(1, `[exec ${executionAsyncId()}]\n`);
+	let indent = 2;
 	const hook = createHook({
 		init(asyncId: number, type: string, triggerAsyncId: number) {
-			if (targets.has(triggerAsyncId)) {
-				targets.add(asyncId);
+			if (!targets.has(triggerAsyncId)) return;
+			targets.add(asyncId);
+			if (debug) {
+				writeSync(1, `${' '.repeat(indent)}${triggerAsyncId} -> ${asyncId} [exec ${executionAsyncId()}] ${type}\n`);
 			}
 		},
 		before(asyncId: number) {
 			if (!targets.has(asyncId)) return;
+			if (debug) {
+				writeSync(1, `${' '.repeat(indent)}${asyncId} {\n`);
+				indent += 2;
+			}
 			//@ts-ignore
 			process.stdout.write = streams.stdout.write.bind(streams.stdout);
 			//@ts-ignore
@@ -68,6 +76,10 @@ export async function captureOutputStreams<T>(fn: () => Promise<T>): Promise<{ s
 		},
 		after(asyncId: number) {
 			if (!targets.has(asyncId)) return;
+			if (debug) {
+				indent -= 2;
+				writeSync(1, `${' '.repeat(indent)}} ${asyncId}\n`);
+			}
 			process.stdout.write = originalOutWrite;
 			process.stderr.write = originalErrWrite;
 		},
