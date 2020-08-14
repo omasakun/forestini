@@ -4,11 +4,11 @@
 	"author": "omasakun",
 	"license": "MIT",
 	"private": true,
-  "main": "forestini.js",
-  "types": "forestini.d.ts",
+	"main": "dest/forestini.js",
+	"types": "dest/forestini.d.ts",
 	"scripts": {
 		"build": "tsc",
-		"ncu": "ncu"
+		"ncu": "pnpx --package npm-check-updates ncu"
 	},
 	"devDependencies": {
 		"@types/browser-sync": "^2.26.1",
@@ -20,6 +20,7 @@
 	"dependencies": {
 		"browser-sync": "^2.26.12",
 		"chokidar": "^3.4.2",
+		"glob": "^7.1.6",
 		"ncp": "^2.0.0",
 		"rimraf": "^3.0.2"
 	}

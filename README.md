@@ -56,64 +56,64 @@
 
 別の言葉で言うと、十分な時間が取れなかったため使用方法を説明する文書は用意できませんでした。
 
-## 予め用意されているタスク (構想段階でのバージョン)
+## 予め用意されているタスク
 
 - `src` : 外部のフォルダーからファイルツリーをコピー
 - `dest` : 外部のフォルダーにファイルツリーをコピー
-- `copy` : 一つ以上のファイルツリーから条件に合うファイルをコピー
 - `cache` : ファイルツリーに変更が無い時に以降の処理を行わない
-- `exec` : 外部プログラムを呼び出し
+- `merge` : 一つ以上のファイルツリーをマージ
+- `filterFiles` : 指定した Glob を満たすファイルだけをコピー
 - `browserSync` : ファイルツリーを BrowserSync のローカルサーバーでサーブ
+- `customBuild` : 非同期関数から簡単にタスクを作成
+- `exec` : 外部プログラムを呼び出し
 
-## 使用例 (構想段階でのバージョン)
+## 使用例
 
 ```typescript
-import { Forestini, exec, cmd } from "./forestini";
-import { join } from "path";
-const fo = new Forestini({ tmpRoot: ".tmp" });
+import { notify } from "node-notifier";
+import { buildDirPlaceholders, Builder as Forestini, exec, filterFiles } from "./forestini";
+const fo = new Forestini({ tmpDir: ".tmp" });
+const { i0, o, c } = buildDirPlaceholders; // i0: inputDir[0] / o: outputDir / c: cacheDir
+const isProd = process.argv.some(o => o === "--prod");
 
 // complex task configs can be defined separately
-const tsc = exec(({ i, o, c }) => [
-  // cmd: space-separated text -> array of text
-  ...cmd`tsc ${join(i!, "index.ts")} --rootDir ${i!} --outDir ${o!}`,
-  ...cmd`--incremental --tsBuildInfoFile ${join(c!, ".tsbuildinfo")} --pretty`],
-  { persistentOutput: true });
+const tsc = exec({ persistentOutput: true, displayName: "tsc" })
+	`tsc ${i0}/index.ts --rootDir ${i0} --outDir ${o} --incremental --tsBuildInfoFile ${c}/.tsbuildinfo --pretty`;
 
-const source = fo
-  .src("src");
+const source = fo.src("src");
 
 const scripts = source
-  .copy({ map: [{ filter: /^.*\.tsx?$/ }], name: "copy (scripts)" })
-  .cache("cache (scripts)") // if files are unchanged, `tsc` will not be executed
-  .then(tsc);
+	.filterFiles("**/@(*.ts|*.tsx)")
+	.cache() // if files are unchanged, `tsc` will not be executed
+	.then(tsc)
+	.if(isProd, filterFiles("**/!(*.js.map|*.d.ts)")); // execute a task conditionally
 
-const assets = source
-  .copy({ map: [{ filter: file => ! /^.*\.tsx?$/.test(file) }], name: "copy (assets)" });
+const assets = source.filterFiles("**/!(*.ts|*.tsx)");
 
-const compiled = fo
-  .copy([scripts, assets], { name: "copy (dest)" }); // merge
+const compiled = fo.merge([scripts, assets]);
 
 compiled.dest("dest");
 compiled.browserSync({
-  config: {
-    logPrefix: "BS",
-    open: false,
-    port: 8137,
-    ui: { port: 8138 },
-    logFileChanges: false,
-    https: false,
-    notify: false,
-    reloadOnRestart: true,
-  } // my favorite configs
-});
+	logPrefix: "BS",
+	open: false,
+	port: 8137,
+	ui: { port: 8138 },
+	logFileChanges: false,
+	https: false,
+	notify: false,
+	reloadOnRestart: true,
+}); // my favorite configs
 
 // because the tasks are executed in parallel,
 // the output of `echo` will be shown before the output of `dest`
-compiled.exec("echo finished! compiled files & dirs @ [in]"); // short style
+compiled.then(exec()`echo finished! compiled files & dirs @ ${i0}`); // short style
+compiled.asyncBuild(async () => notify("Compiled!"));
 
 fo.freeze() // freeze the task dependency graph
-  .watch(); // no additional configs for watch is required
+	.watch(); // no additional configs for watch is required
 ```
+
+Real-World Example: [Typing Tutor](https://github.com/omasakun/typing-tutor) is using Forestini.
 
 ## License
 
