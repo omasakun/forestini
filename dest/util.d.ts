@@ -14,21 +14,21 @@ export declare function captureOutputStreams<T>(fn: () => Promise<T>, debug?: bo
     streams: InterleavedStreams;
     res: T;
 }>;
+export declare function makeGetter<T>(getter: (name: string) => T): {
+    [name: string]: T;
+};
 export declare type Placeholder<T> = () => T;
 export declare class PropContext<T> {
-    private getter;
-    readonly placeholders: Map<string, Placeholder<T>>;
-    readonly placeholderSet: WeakSet<Placeholder<T>>;
-    getObject(): {
-        [name: string]: T;
-    };
-    getPlaceholderMaker(): {
-        [name: string]: Placeholder<T>;
-    };
+    private getters;
+    /** readable for debug purpose */
+    readonly masterAsyncId: Map<number, number>;
+    private placeholders;
+    private placeholderSet;
+    private hook;
+    constructor();
     getPlaceholder(name: string): Placeholder<T>;
+    run<U>(getter: (name: string) => T, fn: () => Promise<U>): Promise<U>;
     resolvePlaceholder(placeholder: Placeholder<T>): T;
-    setGetter(getter: (name: string) => T): void;
-    clearGetter(): void;
 }
 export declare function filterUndefined<T>(items: (T | undefined)[]): T[];
 export declare function clearConsole(): void;

@@ -262,7 +262,7 @@ function easyTask(name, config, opts) {
     return { name, displayName: (_a = opts === null || opts === void 0 ? void 0 : opts.displayName) !== null && _a !== void 0 ? _a : name, volatile: false, ...config, build };
 }
 const buildDirContext = new util_1.PropContext();
-exports.buildDirPlaceholders = buildDirContext.getPlaceholderMaker();
+exports.buildDirPlaceholders = util_1.makeGetter(name => buildDirContext.getPlaceholder(name));
 function easyBuild(fn) {
     return async ({ inDirs, getDir }) => {
         var _a;
@@ -274,7 +274,7 @@ function easyBuild(fn) {
         const getValidInDirs = () => util_1.filterUndefined(getInDirs());
         const getOutDir = () => { hasOutDir = true; return getDir("out"); };
         const getCacheDir = (name) => getDir(name ? `cache-${name}` : "cache");
-        buildDirContext.setGetter(name => {
+        const dirGetter = name => {
             if (name === "o")
                 return getOutDir();
             if (name.startsWith("i")) {
@@ -291,11 +291,9 @@ function easyBuild(fn) {
                 return getCacheDir(name.substr(1));
             }
             util_1.invalid();
-        });
-        const dir = buildDirContext.getObject(); // use async_hooks to create async context
-        const fnPromise = fn({ getInDirs, getValidInDirs, getOutDir, getCacheDir, dir });
-        buildDirContext.clearGetter();
-        const result = await fnPromise;
+        };
+        const dir = util_1.makeGetter(dirGetter);
+        const result = await buildDirContext.run(dirGetter, () => fn({ getInDirs, getValidInDirs, getOutDir, getCacheDir, dir }));
         if (!hasGetInDirsCalled && util_1.uniq(usedInDirs).length !== inDirs.filter(o => typeof o === "string").length) {
             console.warn("some inDirs were not used");
         }
@@ -366,7 +364,7 @@ function merge(opts) {
 }
 exports.merge = merge;
 function filterFiles(pattern, opts) {
-    return easyTask("filter", {
+    return easyTask("filterFiles", {
         async build({ dir: { i0, o } }) {
             await util_1.clearDir(o);
             const paths = await new Promise((res, rej) => glob(pattern, { cwd: i0, nodir: true, nomount: true }, (err, o) => err ? rej(err) : res(o)));
@@ -415,7 +413,7 @@ function path(literals, ...placeholders) {
 exports.path = path;
 /** @param build use `buildDirPlaceholder` to get directories */
 function customBuild(build, opts) {
-    return easyTask("asyncBuild", { volatile: opts === null || opts === void 0 ? void 0 : opts.volatile, build: () => build().then(() => ({})) }, opts);
+    return easyTask("customBuild", { volatile: opts === null || opts === void 0 ? void 0 : opts.volatile, build: () => build().then(() => ({})) }, opts);
 }
 exports.customBuild = customBuild;
 /** placeholders will be resolved using `buildDirContext` */
@@ -462,6 +460,7 @@ function cmdParser(literals, ...placeholders) {
 function exec(opts = {}) {
     return (literals, ...placeholders) => easyTask("exec", {
         volatile: opts.volatile,
+        displayName: `exec (${literals[0].split(" ")[0]})`,
         async build(args) {
             const parts = cmdParser(literals, ...placeholders);
             if (opts.persistentOutput !== true)
@@ -470,7 +469,7 @@ function exec(opts = {}) {
             cp.stdout.on("data", data => process.stdout.write(data));
             cp.stderr.on("data", data => process.stderr.write(data));
             try {
-                await new Promise((res, rej) => cp.on("close", code => code === 0 ? res() : rej(`exit with code ${code}`)));
+                await new Promise((res, rej) => cp.on("close", code => code === 0 ? res() : rej(`exit with code ${code} `)));
             }
             catch (e) {
                 if (opts.neverFails === true)

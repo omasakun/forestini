@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.never = exports.bug = exports.invalid = exports.error = exports.isSameFS = exports.clearDir = exports.mkdtempIn = exports.mkdirpSync = exports.mkdirp = exports.cp = exports.rmSync = exports.rm = exports.every = exports.oneAtATime = exports.debounce = exports.onExit = exports.date = exports.uniq = exports.isStringArray = exports.padZero = exports.clearConsole = exports.filterUndefined = exports.PropContext = exports.captureOutputStreams = exports.InterleavedStreams = void 0;
+exports.never = exports.bug = exports.invalid = exports.error = exports.isSameFS = exports.clearDir = exports.mkdtempIn = exports.mkdirpSync = exports.mkdirp = exports.cp = exports.rmSync = exports.rm = exports.every = exports.oneAtATime = exports.debounce = exports.onExit = exports.date = exports.uniq = exports.isStringArray = exports.padZero = exports.clearConsole = exports.filterUndefined = exports.PropContext = exports.makeGetter = exports.captureOutputStreams = exports.InterleavedStreams = void 0;
 const async_hooks_1 = require("async_hooks");
 const fs_1 = require("fs");
 const ncpBase = require("ncp");
@@ -49,11 +49,9 @@ async function captureOutputStreams(fn, debug = false) {
     const originalOutWrite = process.stdout.write;
     const originalErrWrite = process.stderr.write;
     const targets = new Set();
-    targets.add(async_hooks_1.executionAsyncId());
-    fs_1.writeSync(1, `[exec ${async_hooks_1.executionAsyncId()}]\n`);
     let indent = 2;
     const hook = async_hooks_1.createHook({
-        init(asyncId, type, triggerAsyncId) {
+        init: (asyncId, type, triggerAsyncId) => {
             if (!targets.has(triggerAsyncId))
                 return;
             targets.add(asyncId);
@@ -61,7 +59,7 @@ async function captureOutputStreams(fn, debug = false) {
                 fs_1.writeSync(1, `${' '.repeat(indent)}${triggerAsyncId} -> ${asyncId} [exec ${async_hooks_1.executionAsyncId()}] ${type}\n`);
             }
         },
-        before(asyncId) {
+        before: (asyncId) => {
             if (!targets.has(asyncId))
                 return;
             if (debug) {
@@ -73,7 +71,7 @@ async function captureOutputStreams(fn, debug = false) {
             //@ts-ignore
             process.stderr.write = streams.stderr.write.bind(streams.stderr);
         },
-        after(asyncId) {
+        after: (asyncId) => {
             if (!targets.has(asyncId))
                 return;
             if (debug) {
@@ -85,6 +83,11 @@ async function captureOutputStreams(fn, debug = false) {
         },
     });
     hook.enable();
+    await Promise.resolve(); // request new executionAsyncId
+    targets.add(async_hooks_1.executionAsyncId());
+    if (debug) {
+        fs_1.writeSync(1, `[exec ${async_hooks_1.executionAsyncId()}]\n`);
+    }
     const res = await fn();
     hook.disable();
     process.stdout.write = originalOutWrite;
@@ -92,49 +95,73 @@ async function captureOutputStreams(fn, debug = false) {
     return { streams, res };
 }
 exports.captureOutputStreams = captureOutputStreams;
+function makeGetter(getter) {
+    return new Proxy({}, {
+        get: (_, name) => {
+            if (typeof name !== "string")
+                error("makeGetter: prop not found");
+            return getter(name);
+        }
+    });
+}
+exports.makeGetter = makeGetter;
 class PropContext {
     constructor() {
-        this.getter = () => error("PropContext: not initialized");
+        // private getter: (name: string) => T = () => error("PropContext: not initialized");
+        this.getters = new Map();
+        /** readable for debug purpose */
+        this.masterAsyncId = new Map();
         this.placeholders = new Map();
         this.placeholderSet = new WeakSet();
-    }
-    getObject() {
-        return new Proxy({}, {
-            get: (_, name) => {
-                if (typeof name !== "string")
-                    error("PropContext: prop not found");
-                return this.getter(name);
-            }
-        });
-    }
-    getPlaceholderMaker() {
-        return new Proxy({}, {
-            get: (_, name) => {
-                if (typeof name !== "string")
-                    error("PropContext: prop not found");
-                return this.getPlaceholder(name);
-            }
+        this.hook = async_hooks_1.createHook({
+            init: (asyncId, type, triggerAsyncId) => {
+                if (!this.masterAsyncId.has(triggerAsyncId))
+                    return;
+                if (this.masterAsyncId.has(asyncId))
+                    bug();
+                this.masterAsyncId.set(asyncId, this.masterAsyncId.get(triggerAsyncId));
+            } // TODO: use AsyncLocalStorage
         });
     }
     getPlaceholder(name) {
         const item = this.placeholders.get(name);
         if (item)
             return item;
-        const newItem = () => this.getter(name);
+        const newItem = () => {
+            const eid = async_hooks_1.executionAsyncId();
+            if (!this.masterAsyncId.has(eid))
+                error("PropContext: out of context");
+            const getter = this.getters.get(this.masterAsyncId.get(eid));
+            if (!getter)
+                bug();
+            return getter(name);
+        };
         this.placeholders.set(name, newItem);
         this.placeholderSet.add(newItem);
         return newItem;
+    }
+    async run(getter, fn) {
+        this.hook.enable();
+        await Promise.resolve(); // request new executionAsyncId
+        const eid = async_hooks_1.executionAsyncId();
+        if (this.getters.has(eid))
+            bug();
+        if (this.masterAsyncId.has(eid))
+            bug();
+        this.getters.set(eid, getter);
+        this.masterAsyncId.set(eid, eid);
+        const res = await fn();
+        this.hook.disable();
+        this.getters.delete(eid);
+        this.masterAsyncId.delete(eid);
+        const keysToRemove = Array.from(this.masterAsyncId.entries()).filter(o => o[1] === eid).map(o => o[0]);
+        keysToRemove.forEach(id => this.masterAsyncId.delete(id));
+        return res;
     }
     resolvePlaceholder(placeholder) {
         if (!this.placeholderSet.has(placeholder))
             error("PropContext: prop not found");
         return placeholder();
-    }
-    setGetter(getter) {
-        this.getter = getter;
-    }
-    clearGetter() {
-        this.getter = () => error("PropContext: invalidated");
     }
 }
 exports.PropContext = PropContext;
