@@ -6,7 +6,7 @@ import { tmpdir } from "os";
 import { join, normalize, relative, resolve } from "path";
 import { performance } from "perf_hooks";
 import { cwd } from "process";
-import { captureOutputStreams, clearConsole, clearDir, cp, date, debounce, error, filterUndefined, InterleavedStreams, invalid, isSameFS, isStringArray, mkdirp, mkdirpSync, mkdtempIn, never, oneAtATime, onExit, padZero, Placeholder, PropContext, rmSync, uniq } from "./util";
+import { captureOutputStreams, clearConsole, clearDir, cp, date, debounce, error, filterUndefined, InterleavedStreams, invalid, isSameFS, isStringArray, makeGetter, mkdirp, mkdirpSync, mkdtempIn, never, oneAtATime, onExit, padZero, Placeholder, PropContext, rmSync, uniq } from "./util";
 
 //#region Builder
 export class Builder {
@@ -299,7 +299,7 @@ interface EasyBuildResult {
 	notChanged?: boolean
 }
 const buildDirContext = new PropContext<string>();
-export const buildDirPlaceholders = buildDirContext.getPlaceholderMaker();
+export const buildDirPlaceholders = makeGetter(name => buildDirContext.getPlaceholder(name));
 function easyBuild(fn: (args: EasyBuildArgs) => Promise<EasyBuildResult>): Task["build"] {
 	return async ({ inDirs, getDir }) => {
 		let hasOutDir = false;
@@ -310,7 +310,7 @@ function easyBuild(fn: (args: EasyBuildArgs) => Promise<EasyBuildResult>): Task[
 		const getValidInDirs = () => filterUndefined(getInDirs());
 		const getOutDir = () => { hasOutDir = true; return getDir("out") };
 		const getCacheDir = (name?: string) => getDir(name ? `cache-${name}` : "cache");
-		buildDirContext.setGetter(name => {
+		const dirGetter = name => {
 			if (name === "o") return getOutDir();
 			if (name.startsWith("i")) {
 				const i = parseInt(name.substr(1), 10);
@@ -324,11 +324,9 @@ function easyBuild(fn: (args: EasyBuildArgs) => Promise<EasyBuildResult>): Task[
 				return getCacheDir(name.substr(1));
 			}
 			invalid();
-		})
-		const dir = buildDirContext.getObject(); // use async_hooks to create async context
-		const fnPromise = fn({ getInDirs, getValidInDirs, getOutDir, getCacheDir, dir });
-		buildDirContext.clearGetter();
-		const result = await fnPromise;
+		};
+		const dir = makeGetter(dirGetter);
+		const result = await buildDirContext.run(dirGetter, () => fn({ getInDirs, getValidInDirs, getOutDir, getCacheDir, dir }));
 		if (!hasGetInDirsCalled && uniq(usedInDirs).length !== inDirs.filter(o => typeof o === "string").length) {
 			console.warn("some inDirs were not used");
 		}
@@ -390,7 +388,7 @@ export function merge(opts?: { pairs?: { from?: string, to?: string }[] } & Opti
 	}, opts);
 }
 export function filterFiles(pattern: string, opts?: OptionalDisplayName) {
-	return easyTask("filter", {
+	return easyTask("filterFiles", {
 		async build({ dir: { i0, o } }) {
 			await clearDir(o);
 			const paths: string[] = await new Promise((res, rej) => glob(pattern, { cwd: i0, nodir: true, nomount: true }, (err, o) => err ? rej(err) : res(o)));
@@ -434,7 +432,7 @@ export function path(literals: TemplateStringsArray, ...placeholders: (string | 
 }
 /** @param build use `buildDirPlaceholder` to get directories */
 export function customBuild(build: () => Promise<void>, opts?: Pick<ExecOption, "displayName" | "volatile">) {
-	return easyTask("asyncBuild", { volatile: opts?.volatile, build: () => build().then(() => ({})) }, opts);
+	return easyTask("customBuild", { volatile: opts?.volatile, build: () => build().then(() => ({})) }, opts);
 }
 /** placeholders will be resolved using `buildDirContext` */
 function cmdParser(literals: TemplateStringsArray, ...placeholders: (string | string[] | Placeholder<string>)[]): string[] {
@@ -482,6 +480,7 @@ export function exec(opts: ExecOption = {}) {
 	return (literals: TemplateStringsArray, ...placeholders: (string | string[] | Placeholder<string>)[]) =>
 		easyTask("exec", {
 			volatile: opts.volatile,
+			displayName: `exec (${literals[0].split(" ")[0]})`,
 			async build(args) {
 				const parts = cmdParser(literals, ...placeholders);
 				if (opts.persistentOutput !== true) await clearDir(args.getOutDir());
@@ -489,7 +488,7 @@ export function exec(opts: ExecOption = {}) {
 				cp.stdout.on("data", data => process.stdout.write(data));
 				cp.stderr.on("data", data => process.stderr.write(data));
 				try {
-					await new Promise((res, rej) => cp.on("close", code => code === 0 ? res() : rej(`exit with code ${code}`)));
+					await new Promise((res, rej) => cp.on("close", code => code === 0 ? res() : rej(`exit with code ${code} `)));
 				} catch (e) {
 					if (opts.neverFails === true) console.error(e);
 					else throw e;

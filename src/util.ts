@@ -1,4 +1,4 @@
-import { createHook, executionAsyncId } from "async_hooks";
+import { AsyncHook, createHook, executionAsyncId } from "async_hooks";
 import { mkdirSync, promises as fsPromises, writeSync } from "fs";
 import * as ncpBase from "ncp";
 import { join, sep } from "path";
@@ -52,18 +52,17 @@ export async function captureOutputStreams<T>(fn: () => Promise<T>, debug = fals
 	const originalOutWrite = process.stdout.write;
 	const originalErrWrite = process.stderr.write;
 	const targets = new Set<number>();
-	targets.add(executionAsyncId());
-	writeSync(1, `[exec ${executionAsyncId()}]\n`);
+
 	let indent = 2;
 	const hook = createHook({
-		init(asyncId: number, type: string, triggerAsyncId: number) {
+		init: (asyncId: number, type: string, triggerAsyncId: number) => {
 			if (!targets.has(triggerAsyncId)) return;
 			targets.add(asyncId);
 			if (debug) {
 				writeSync(1, `${' '.repeat(indent)}${triggerAsyncId} -> ${asyncId} [exec ${executionAsyncId()}] ${type}\n`);
 			}
 		},
-		before(asyncId: number) {
+		before: (asyncId: number) => {
 			if (!targets.has(asyncId)) return;
 			if (debug) {
 				writeSync(1, `${' '.repeat(indent)}${asyncId} {\n`);
@@ -74,7 +73,7 @@ export async function captureOutputStreams<T>(fn: () => Promise<T>, debug = fals
 			//@ts-ignore
 			process.stderr.write = streams.stderr.write.bind(streams.stderr);
 		},
-		after(asyncId: number) {
+		after: (asyncId: number) => {
 			if (!targets.has(asyncId)) return;
 			if (debug) {
 				indent -= 2;
@@ -85,6 +84,11 @@ export async function captureOutputStreams<T>(fn: () => Promise<T>, debug = fals
 		},
 	});
 	hook.enable();
+	await Promise.resolve(); // request new executionAsyncId
+	targets.add(executionAsyncId());
+	if (debug) {
+		writeSync(1, `[exec ${executionAsyncId()}]\n`);
+	}
 	const res = await fn();
 	hook.disable();
 	process.stdout.write = originalOutWrite;
@@ -92,44 +96,68 @@ export async function captureOutputStreams<T>(fn: () => Promise<T>, debug = fals
 	return { streams, res };
 }
 
+export function makeGetter<T>(getter: (name: string) => T): { [name: string]: T } {
+	return new Proxy({}, {
+		get: (_, name) => {
+			if (typeof name !== "string") error("makeGetter: prop not found");
+			return getter(name);
+		}
+	});
+}
+
 export type Placeholder<T> = () => T;
 export class PropContext<T>{
-	private getter: (name: string) => T = () => error("PropContext: not initialized");
-	readonly placeholders = new Map<string, Placeholder<T>>();
-	readonly placeholderSet = new WeakSet<Placeholder<T>>();
-	getObject(): { [name: string]: T } {
-		return new Proxy({}, {
-			get: (_, name) => {
-				if (typeof name !== "string") error("PropContext: prop not found");
-				return this.getter(name);
-			}
-		});
-	}
-	getPlaceholderMaker(): { [name: string]: Placeholder<T> } {
-		return new Proxy({}, {
-			get: (_, name) => {
-				if (typeof name !== "string") error("PropContext: prop not found");
-				return this.getPlaceholder(name);
-			}
+	// private getter: (name: string) => T = () => error("PropContext: not initialized");
+	private getters = new Map<number, (name: string) => T>();
+	/** readable for debug purpose */
+	readonly masterAsyncId = new Map<number, number>();
+	private placeholders = new Map<string, Placeholder<T>>();
+	private placeholderSet = new WeakSet<Placeholder<T>>();
+	private hook: AsyncHook;
+	constructor() {
+		this.hook = createHook({
+			init: (asyncId: number, type: string, triggerAsyncId: number) => {
+				if (!this.masterAsyncId.has(triggerAsyncId)) return;
+				if (this.masterAsyncId.has(asyncId)) bug();
+				this.masterAsyncId.set(asyncId, this.masterAsyncId.get(triggerAsyncId)!);
+			} // TODO: use AsyncLocalStorage
 		});
 	}
 	getPlaceholder(name: string): Placeholder<T> {
 		const item = this.placeholders.get(name);
 		if (item) return item;
-		const newItem = () => this.getter(name);
+		const newItem = () => {
+			const eid = executionAsyncId();
+			if (!this.masterAsyncId.has(eid)) error("PropContext: out of context");
+			const getter = this.getters.get(this.masterAsyncId.get(eid)!);
+			if (!getter) bug();
+			return getter(name);
+		};
 		this.placeholders.set(name, newItem);
 		this.placeholderSet.add(newItem);
 		return newItem;
 	}
+	async run<U>(getter: (name: string) => T, fn: () => Promise<U>): Promise<U> {
+		this.hook.enable();
+		await Promise.resolve(); // request new executionAsyncId
+		const eid = executionAsyncId();
+		if (this.getters.has(eid)) bug();
+		if (this.masterAsyncId.has(eid)) bug();
+		this.getters.set(eid, getter);
+		this.masterAsyncId.set(eid, eid);
+		const res = await fn();
+		this.hook.disable();
+
+		this.getters.delete(eid);
+		this.masterAsyncId.delete(eid);
+		const keysToRemove = Array.from(this.masterAsyncId.entries()).filter(o => o[1] === eid).map(o => o[0]);
+		keysToRemove.forEach(id => this.masterAsyncId.delete(id));
+
+		return res;
+	}
 	resolvePlaceholder(placeholder: Placeholder<T>): T {
 		if (!this.placeholderSet.has(placeholder)) error("PropContext: prop not found");
 		return placeholder();
-	}
-	setGetter(getter: (name: string) => T) {
-		this.getter = getter;
-	}
-	clearGetter() {
-		this.getter = () => error("PropContext: invalidated");
 	}
 }
 
