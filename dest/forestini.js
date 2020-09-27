@@ -436,10 +436,12 @@ function cmdParser(literals, ...placeholders) {
         if (typeof ph === "function") {
             if (joinNext) {
                 const last = parts.length - 1;
-                parts[last] = path_1.join(parts[last], buildDirContext.resolvePlaceholder(ph));
+                // parts[last] = join(parts[last], buildDirContext.resolvePlaceholder(ph));
+                parts[last] = path_1.join(parts[last], ph());
             }
             else {
-                parts.push(buildDirContext.resolvePlaceholder(ph));
+                // parts.push(buildDirContext.resolvePlaceholder(ph));
+                parts.push(ph());
             }
             wasPlaceholder = true;
         }
