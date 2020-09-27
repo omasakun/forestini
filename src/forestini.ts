@@ -86,7 +86,7 @@ class Runner {
 	async clear(): Promise<void> {
 		await Promise.all(this.tasks.map(o => o.task.clear?.()));
 	}
-	async build(): Promise<void> {
+	async build(): Promise<{ err: boolean }> {
 		if (this.isRunning) error("The Forestini is already running");
 		this.isRunning = true;
 
@@ -99,6 +99,7 @@ class Runner {
 		console.log(`\u001b[m\u001b[35m\u001b[7m DONE  \u001b[m ${date()}`);
 
 		this.isRunning = false;
+		return { err: this.tasks.some(o => o.isError()) };
 	}
 	async watch(): Promise<void> {
 		if (this.isRunning) error("The Forestini is already running");
