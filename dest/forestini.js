@@ -109,6 +109,7 @@ class Runner {
         dispose();
         console.log(`\u001b[m\u001b[35m\u001b[7m DONE  \u001b[m ${util_1.date()}`);
         this.isRunning = false;
+        return { err: this.tasks.some(o => o.isError()) };
     }
     async watch() {
         if (this.isRunning)

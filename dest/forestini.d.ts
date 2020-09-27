@@ -31,7 +31,9 @@ declare class Runner {
     constructor(tasks: TaskInstance[], config?: Partial<Config>);
     dotGraph(): string;
     clear(): Promise<void>;
-    build(): Promise<void>;
+    build(): Promise<{
+        err: boolean;
+    }>;
     watch(): Promise<void>;
     private prepareTaskNodes;
     private runTaskNodes;
