@@ -454,9 +454,11 @@ function cmdParser(literals: TemplateStringsArray, ...placeholders: (string | st
 		if (typeof ph === "function") {
 			if (joinNext) {
 				const last = parts.length - 1;
-				parts[last] = join(parts[last], buildDirContext.resolvePlaceholder(ph));
+				// parts[last] = join(parts[last], buildDirContext.resolvePlaceholder(ph));
+				parts[last] = join(parts[last], ph());
 			} else {
-				parts.push(buildDirContext.resolvePlaceholder(ph));
+				// parts.push(buildDirContext.resolvePlaceholder(ph));
+				parts.push(ph());
 			}
 			wasPlaceholder = true;
 		} else {
