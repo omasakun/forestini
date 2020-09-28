@@ -1,7 +1,7 @@
 import { AsyncHook, createHook, executionAsyncId } from "async_hooks";
 import { mkdirSync, promises as fsPromises, writeSync } from "fs";
 import * as ncpBase from "ncp";
-import { join, sep } from "path";
+import { dirname, join, sep } from "path";
 import * as rimrafBase from "rimraf";
 import { Writable } from "stream";
 const { mkdir, mkdtemp, readdir, readFile, stat } = fsPromises;
@@ -267,8 +267,8 @@ export function rm(path: string): Promise<void> {
 export function rmSync(path: string): void {
 	rimrafBase.sync(path, { disableGlob: true });
 }
-
-export function cp(src: string, dest: string): Promise<void> {
+export async function cp(src: string, dest: string): Promise<void> {
+	await mkdirp(dirname(dest));
 	return new Promise((res, rej) =>
 		ncpBase.ncp(src, dest, { dereference: true, clobber: false }, err => {
 			if (err) rej(err);
