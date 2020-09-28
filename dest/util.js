@@ -279,7 +279,8 @@ function rmSync(path) {
     rimrafBase.sync(path, { disableGlob: true });
 }
 exports.rmSync = rmSync;
-function cp(src, dest) {
+async function cp(src, dest) {
+    await mkdirp(path_1.dirname(dest));
     return new Promise((res, rej) => ncpBase.ncp(src, dest, { dereference: true, clobber: false }, err => {
         if (err)
             rej(err);
