@@ -281,7 +281,9 @@ function rmSync(path) {
 exports.rmSync = rmSync;
 async function cp(src, dest) {
     await mkdirp(path_1.dirname(dest));
-    return new Promise((res, rej) => ncpBase.ncp(src, dest, { dereference: true, clobber: false }, err => {
+    return new Promise((res, rej) => 
+    // `clobber: false` prevents directories from being merged (that's unwanted behavior)
+    ncpBase.ncp(src, dest, { dereference: true, clobber: true }, err => {
         if (err)
             rej(err);
         else
