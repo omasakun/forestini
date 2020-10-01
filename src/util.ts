@@ -1,7 +1,8 @@
 import { AsyncHook, createHook, executionAsyncId } from "async_hooks";
 import { mkdirSync, promises as fsPromises, writeSync } from "fs";
-import * as fse from "fs-extra";
+import * as copyDir from "copy-dir";
 import { dirname, join, sep } from "path";
+import * as rimrafBase from "rimraf";
 import { Writable } from "stream";
 const { mkdir, mkdtemp, readdir, readFile, stat } = fsPromises;
 
@@ -254,16 +255,26 @@ export function every(promises: Promise<boolean>[]): Promise<boolean> {
 	});
 }
 
-export async function rm(path: string): Promise<void> {
-	await fse.remove(path);
+export function rm(path: string): Promise<void> {
+	return new Promise<void>((resolve, rejected) => {
+		rimrafBase(path, { disableGlob: true }, err => {
+			if (err) rejected(err);
+			else resolve();
+		})
+	})
 }
 
 export function rmSync(path: string): void {
-	fse.removeSync(path);
+	rimrafBase.sync(path, { disableGlob: true });
 }
 export async function cp(src: string, dest: string): Promise<void> {
 	await mkdirp(dirname(dest));
-	await fse.copy(src,dest,{dereference:true,preserveTimestamps:true});
+	return new Promise((res, rej) =>
+		copyDir(src, dest, { mode: true, utimes: true }, err => { // TODO: dereference
+			if (err) rej(err);
+			else res();
+		})
+	);
 }
 
 export function mkdirp(dir: string): Promise<void> {
