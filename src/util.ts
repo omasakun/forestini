@@ -1,8 +1,7 @@
 import { AsyncHook, createHook, executionAsyncId } from "async_hooks";
 import { mkdirSync, promises as fsPromises, writeSync } from "fs";
-import * as ncpBase from "ncp";
+import * as fse from "fs-extra";
 import { dirname, join, sep } from "path";
-import * as rimrafBase from "rimraf";
 import { Writable } from "stream";
 const { mkdir, mkdtemp, readdir, readFile, stat } = fsPromises;
 
@@ -255,27 +254,16 @@ export function every(promises: Promise<boolean>[]): Promise<boolean> {
 	});
 }
 
-export function rm(path: string): Promise<void> {
-	return new Promise<void>((resolve, rejected) => {
-		rimrafBase(path, { disableGlob: true }, err => {
-			if (err) rejected(err);
-			else resolve();
-		})
-	})
+export async function rm(path: string): Promise<void> {
+	await fse.remove(path);
 }
 
 export function rmSync(path: string): void {
-	rimrafBase.sync(path, { disableGlob: true });
+	fse.removeSync(path);
 }
 export async function cp(src: string, dest: string): Promise<void> {
 	await mkdirp(dirname(dest));
-	return new Promise((res, rej) =>
-		// `clobber: false` prevents directories from being merged (that's unwanted behavior)
-		ncpBase.ncp(src, dest, { dereference: true, clobber: true }, err => {
-			if (err) rej(err);
-			else res();
-		})
-	);
+	await fse.copy(src,dest,{dereference:true,preserveTimestamps:true});
 }
 
 export function mkdirp(dir: string): Promise<void> {
