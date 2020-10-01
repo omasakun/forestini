@@ -3,8 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.never = exports.bug = exports.invalid = exports.error = exports.isSameFS = exports.clearDir = exports.mkdtempIn = exports.mkdirpSync = exports.mkdirp = exports.cp = exports.rmSync = exports.rm = exports.every = exports.oneAtATime = exports.debounce = exports.onExit = exports.date = exports.uniq = exports.isStringArray = exports.padZero = exports.clearConsole = exports.filterUndefined = exports.PropContext = exports.makeGetter = exports.captureOutputStreams = exports.InterleavedStreams = void 0;
 const async_hooks_1 = require("async_hooks");
 const fs_1 = require("fs");
-const fse = require("fs-extra");
+const copyDir = require("copy-dir");
 const path_1 = require("path");
+const rimrafBase = require("rimraf");
 const stream_1 = require("stream");
 const { mkdir, mkdtemp, readdir, readFile, stat } = fs_1.promises;
 class InterleavedStreams {
@@ -263,17 +264,29 @@ function every(promises) {
     });
 }
 exports.every = every;
-async function rm(path) {
-    await fse.remove(path);
+function rm(path) {
+    return new Promise((resolve, rejected) => {
+        rimrafBase(path, { disableGlob: true }, err => {
+            if (err)
+                rejected(err);
+            else
+                resolve();
+        });
+    });
 }
 exports.rm = rm;
 function rmSync(path) {
-    fse.removeSync(path);
+    rimrafBase.sync(path, { disableGlob: true });
 }
 exports.rmSync = rmSync;
 async function cp(src, dest) {
     await mkdirp(path_1.dirname(dest));
-    await fse.copy(src, dest, { dereference: true, preserveTimestamps: true });
+    return new Promise((res, rej) => copyDir(src, dest, { mode: true, utimes: true }, err => {
+        if (err)
+            rej(err);
+        else
+            res();
+    }));
 }
 exports.cp = cp;
 function mkdirp(dir) {
