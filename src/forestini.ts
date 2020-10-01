@@ -6,7 +6,7 @@ import { tmpdir } from "os";
 import { join, normalize, relative, resolve } from "path";
 import { performance } from "perf_hooks";
 import { cwd } from "process";
-import { captureOutputStreams, clearConsole, clearDir, cp, date, debounce, error, filterUndefined, InterleavedStreams, invalid, isSameFS, isStringArray, makeGetter, mkdirp, mkdirpSync, mkdtempIn, never, oneAtATime, onExit, padZero, Placeholder, PropContext, rmSync, uniq } from "./util";
+import { captureOutputStreams, clearConsole, clearDir, cpSync, date, debounce, error, filterUndefined, InterleavedStreams, invalid, isSameFS, isStringArray, makeGetter, mkdirp, mkdirpSync, mkdtempIn, never, oneAtATime, onExit, padZero, Placeholder, PropContext, rmSync, uniq } from "./util";
 
 //#region Builder
 export class Builder {
@@ -357,7 +357,7 @@ export function dest(path: string, opts?: OptionalDisplayName) {
 		async build({ getValidInDirs }) {
 			await mkdirp(path);
 			await clearDir(path);
-			await Promise.all(getValidInDirs().map(o => cp(o!, path)));
+			getValidInDirs().forEach(o => cpSync(o!, path));
 			return {};
 		},
 	}, opts);
@@ -368,7 +368,7 @@ export function cache(opts?: OptionalDisplayName) {
 			const notChanged = await isSameFS(i0, o); // TODO: what happens if inDirs[0] is modified while isSameFS is running?
 			if (!notChanged) {
 				await clearDir(o);
-				await cp(i0, o);
+				cpSync(i0, o);
 			}
 			return { notChanged };
 		}
@@ -382,8 +382,8 @@ export function merge(opts?: { pairs?: { from?: string, to?: string }[] } & Opti
 			if (pairs && pairs.length !== inDirs.length) invalid();
 			if (!isStringArray(inDirs)) invalid();
 			await clearDir(o);
-			if (!pairs) await Promise.all(inDirs.map(i => cp(i, o)));
-			else await Promise.all(inDirs.map((inDir, i) => cp(join(inDir, pairs[i].from ?? ""), join(o, pairs[i].to ?? ""))));
+			if (!pairs) inDirs.forEach(i => cpSync(i, o));
+			else inDirs.forEach((inDir, i) => cpSync(join(inDir, pairs[i].from ?? ""), join(o, pairs[i].to ?? "")));
 			return {};
 		}
 	}, opts);
@@ -393,7 +393,7 @@ export function filterFiles(pattern: string, opts?: OptionalDisplayName) {
 		async build({ dir: { i0, o } }) {
 			await clearDir(o);
 			const paths: string[] = await new Promise((res, rej) => glob(pattern, { cwd: i0, nodir: true, nomount: true }, (err, o) => err ? rej(err) : res(o)));
-			await Promise.all(paths.map(i => cp(join(i0, i), join(o, i))));
+			paths.forEach(i => cpSync(join(i0, i), join(o, i)));
 			return {};
 		}
 	}, opts); // TODO: filter directories

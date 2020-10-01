@@ -267,14 +267,9 @@ export function rm(path: string): Promise<void> {
 export function rmSync(path: string): void {
 	rimrafBase.sync(path, { disableGlob: true });
 }
-export async function cp(src: string, dest: string): Promise<void> {
-	await mkdirp(dirname(dest));
-	return new Promise((res, rej) =>
-		copyDir(src, dest, { mode: true, utimes: true }, err => { // TODO: dereference
-			if (err) rej(err);
-			else res();
-		})
-	);
+export function cpSync(src: string, dest: string) {
+	mkdirpSync(dirname(dest));
+	copyDir.sync(src, dest, { mode: true, utimes: true }); // TODO: dereference
 }
 
 export function mkdirp(dir: string): Promise<void> {
