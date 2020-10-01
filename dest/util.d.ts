@@ -44,7 +44,7 @@ export declare function oneAtATime<T>(fn: (items: T[]) => Promise<void>): (item:
 export declare function every(promises: Promise<boolean>[]): Promise<boolean>;
 export declare function rm(path: string): Promise<void>;
 export declare function rmSync(path: string): void;
-export declare function cp(src: string, dest: string): Promise<void>;
+export declare function cpSync(src: string, dest: string): void;
 export declare function mkdirp(dir: string): Promise<void>;
 export declare function mkdirpSync(dir: string): void;
 export declare function mkdtempIn(dir: string): Promise<string>;

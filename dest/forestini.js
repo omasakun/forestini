@@ -326,7 +326,7 @@ function dest(path, opts) {
         async build({ getValidInDirs }) {
             await util_1.mkdirp(path);
             await util_1.clearDir(path);
-            await Promise.all(getValidInDirs().map(o => util_1.cp(o, path)));
+            getValidInDirs().forEach(o => util_1.cpSync(o, path));
             return {};
         },
     }, opts);
@@ -338,7 +338,7 @@ function cache(opts) {
             const notChanged = await util_1.isSameFS(i0, o); // TODO: what happens if inDirs[0] is modified while isSameFS is running?
             if (!notChanged) {
                 await util_1.clearDir(o);
-                await util_1.cp(i0, o);
+                util_1.cpSync(i0, o);
             }
             return { notChanged };
         }
@@ -356,9 +356,9 @@ function merge(opts) {
                 util_1.invalid();
             await util_1.clearDir(o);
             if (!pairs)
-                await Promise.all(inDirs.map(i => util_1.cp(i, o)));
+                inDirs.forEach(i => util_1.cpSync(i, o));
             else
-                await Promise.all(inDirs.map((inDir, i) => { var _a, _b; return util_1.cp(path_1.join(inDir, (_a = pairs[i].from) !== null && _a !== void 0 ? _a : ""), path_1.join(o, (_b = pairs[i].to) !== null && _b !== void 0 ? _b : "")); }));
+                inDirs.forEach((inDir, i) => { var _a, _b; return util_1.cpSync(path_1.join(inDir, (_a = pairs[i].from) !== null && _a !== void 0 ? _a : ""), path_1.join(o, (_b = pairs[i].to) !== null && _b !== void 0 ? _b : "")); });
             return {};
         }
     }, opts);
@@ -369,7 +369,7 @@ function filterFiles(pattern, opts) {
         async build({ dir: { i0, o } }) {
             await util_1.clearDir(o);
             const paths = await new Promise((res, rej) => glob(pattern, { cwd: i0, nodir: true, nomount: true }, (err, o) => err ? rej(err) : res(o)));
-            await Promise.all(paths.map(i => util_1.cp(path_1.join(i0, i), path_1.join(o, i))));
+            paths.forEach(i => util_1.cpSync(path_1.join(i0, i), path_1.join(o, i)));
             return {};
         }
     }, opts); // TODO: filter directories

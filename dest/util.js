@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.never = exports.bug = exports.invalid = exports.error = exports.isSameFS = exports.clearDir = exports.mkdtempIn = exports.mkdirpSync = exports.mkdirp = exports.cp = exports.rmSync = exports.rm = exports.every = exports.oneAtATime = exports.debounce = exports.onExit = exports.date = exports.uniq = exports.isStringArray = exports.padZero = exports.clearConsole = exports.filterUndefined = exports.PropContext = exports.makeGetter = exports.captureOutputStreams = exports.InterleavedStreams = void 0;
+exports.never = exports.bug = exports.invalid = exports.error = exports.isSameFS = exports.clearDir = exports.mkdtempIn = exports.mkdirpSync = exports.mkdirp = exports.cpSync = exports.rmSync = exports.rm = exports.every = exports.oneAtATime = exports.debounce = exports.onExit = exports.date = exports.uniq = exports.isStringArray = exports.padZero = exports.clearConsole = exports.filterUndefined = exports.PropContext = exports.makeGetter = exports.captureOutputStreams = exports.InterleavedStreams = void 0;
 const async_hooks_1 = require("async_hooks");
 const fs_1 = require("fs");
 const copyDir = require("copy-dir");
@@ -279,16 +279,11 @@ function rmSync(path) {
     rimrafBase.sync(path, { disableGlob: true });
 }
 exports.rmSync = rmSync;
-async function cp(src, dest) {
-    await mkdirp(path_1.dirname(dest));
-    return new Promise((res, rej) => copyDir(src, dest, { mode: true, utimes: true }, err => {
-        if (err)
-            rej(err);
-        else
-            res();
-    }));
+function cpSync(src, dest) {
+    mkdirpSync(path_1.dirname(dest));
+    copyDir.sync(src, dest, { mode: true, utimes: true }); // TODO: dereference
 }
-exports.cp = cp;
+exports.cpSync = cpSync;
 function mkdirp(dir) {
     return mkdir(dir, { recursive: true }).then();
 }
