@@ -3,9 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.never = exports.bug = exports.invalid = exports.error = exports.isSameFS = exports.clearDir = exports.mkdtempIn = exports.mkdirpSync = exports.mkdirp = exports.cp = exports.rmSync = exports.rm = exports.every = exports.oneAtATime = exports.debounce = exports.onExit = exports.date = exports.uniq = exports.isStringArray = exports.padZero = exports.clearConsole = exports.filterUndefined = exports.PropContext = exports.makeGetter = exports.captureOutputStreams = exports.InterleavedStreams = void 0;
 const async_hooks_1 = require("async_hooks");
 const fs_1 = require("fs");
-const ncpBase = require("ncp");
+const fse = require("fs-extra");
 const path_1 = require("path");
-const rimrafBase = require("rimraf");
 const stream_1 = require("stream");
 const { mkdir, mkdtemp, readdir, readFile, stat } = fs_1.promises;
 class InterleavedStreams {
@@ -264,31 +263,17 @@ function every(promises) {
     });
 }
 exports.every = every;
-function rm(path) {
-    return new Promise((resolve, rejected) => {
-        rimrafBase(path, { disableGlob: true }, err => {
-            if (err)
-                rejected(err);
-            else
-                resolve();
-        });
-    });
+async function rm(path) {
+    await fse.remove(path);
 }
 exports.rm = rm;
 function rmSync(path) {
-    rimrafBase.sync(path, { disableGlob: true });
+    fse.removeSync(path);
 }
 exports.rmSync = rmSync;
 async function cp(src, dest) {
     await mkdirp(path_1.dirname(dest));
-    return new Promise((res, rej) => 
-    // `clobber: false` prevents directories from being merged (that's unwanted behavior)
-    ncpBase.ncp(src, dest, { dereference: true, clobber: true }, err => {
-        if (err)
-            rej(err);
-        else
-            res();
-    }));
+    await fse.copy(src, dest, { dereference: true, preserveTimestamps: true });
 }
 exports.cp = cp;
 function mkdirp(dir) {
