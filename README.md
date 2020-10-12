@@ -130,7 +130,7 @@ fo.freeze() // freeze the task dependency graph
 }
 ```
 
-Real-World Example: [Typing Tutor](https://github.com/omasakun/typing-tutor) is using Forestini.
+<!-- Real-World Example: [Typing Tutor](https://github.com/omasakun/typing-tutor) is using Forestini. -->
 
 ## License
 
